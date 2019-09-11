@@ -22,6 +22,11 @@ public class ClientExample2 {
 
                 ack.call("Ack returned");
                 System.out.println(Arrays.toString(arguments));
+                p2pClientPlugin.emit2("testFromTarget", "h", "el", "lo");
+            });
+
+            p2pClientPlugin.on("testObj", args1 -> {
+                System.out.println(Arrays.toString(args1));
             });
         } catch (URISyntaxException e) {
             e.printStackTrace();

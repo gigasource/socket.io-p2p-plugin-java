@@ -5,13 +5,14 @@ import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.ea.async.Async.await;
+import java.util.concurrent.ExecutionException;
 
 public class P2pClientPlugin extends Socket {
     private String targetClientId;
@@ -29,9 +30,7 @@ public class P2pClientPlugin extends Socket {
             }
         });
 
-        on(SocketEvent.P2P_DISCONNECT, (args) -> {
-            targetClientId = null;
-        });
+        on(SocketEvent.P2P_DISCONNECT, args -> targetClientId = null);
     }
 
     public static P2pClientPlugin createInstance(Socket socket) {
@@ -55,24 +54,23 @@ public class P2pClientPlugin extends Socket {
     }
 
     public boolean registerP2pTarget(String targetClientId, String options) {
-        AtomicBoolean connectionSuccess = new AtomicBoolean();
+        CompletableFuture<Boolean> connectSuccess = new CompletableFuture<>();
 
-        CompletableFuture<Void> connectionAttempt = CompletableFuture.runAsync(() ->
-                emit(SocketEvent.P2P_REGISTER, new Object[]{targetClientId}, args -> {
-                    if ((boolean) args[0]) { // if target is available
-                        connectionSuccess.set(true);
-                    } else {
-                        connectionSuccess.set(false);
-                    }
-                }));
+        emit(SocketEvent.P2P_REGISTER, new Object[]{targetClientId}, args -> {
+            if ((boolean) args[0]) { // if target is available
+                this.options = options;
+                this.targetClientId = targetClientId;
+                connectSuccess.complete(true);
+            } else {
+                connectSuccess.complete(false);
+            }
 
-        await(connectionAttempt);
+        });
 
-        if (connectionSuccess.get()) {
-            this.options = options;
-            this.targetClientId = targetClientId;
-            return true;
-        } else {
+        try {
+            return connectSuccess.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
             return false;
         }
     }
@@ -105,6 +103,33 @@ public class P2pClientPlugin extends Socket {
             emit(SocketEvent.P2P_EMIT_ACKNOWLEDGE, emitPayload, ack);
         } else { // No Ack case
             emit(SocketEvent.P2P_EMIT, emitPayload);
+        }
+    }
+
+    public List<String> getClientList() {
+
+        CompletableFuture<List<String>> clientListRequest = new CompletableFuture<>();
+
+        emit(SocketEvent.LIST_CLIENTS, new Object[]{}, args -> {
+            JSONArray clients = (JSONArray) args[0];
+            List<String> clientList = new ArrayList<>();
+
+            for (int i = 0; i < clients.length(); i++) {
+                try {
+                    clientList.add((String) clients.get(i));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            clientListRequest.complete(clientList);
+        });
+
+        try {
+            return clientListRequest.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }
