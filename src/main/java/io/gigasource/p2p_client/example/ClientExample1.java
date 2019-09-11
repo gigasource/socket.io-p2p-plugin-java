@@ -1,3 +1,6 @@
+package io.gigasource.p2p_client.example;
+
+import io.gigasource.p2p_client.P2pClientPlugin;
 import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;

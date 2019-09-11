@@ -1,5 +1,7 @@
-import constants.SocketEvent;
-import exception.TargetDeviceUnavailableException;
+package io.gigasource.p2p_client;
+
+import io.gigasource.p2p_client.constants.SocketEvent;
+import io.gigasource.p2p_client.exception.TargetDeviceUnavailableException;
 import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;

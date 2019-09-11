@@ -2,8 +2,8 @@ plugins {
     id 'java'
 }
 
-group 'socket.io-p2p-plugin-java'
-version '1.0-SNAPSHOT'
+group 'io.gigasource'
+version '1.0.1-SNAPSHOT'
 
 sourceCompatibility = 1.8
 

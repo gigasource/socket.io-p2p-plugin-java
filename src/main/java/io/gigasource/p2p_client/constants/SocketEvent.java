@@ -1,4 +1,4 @@
-package constants;
+package io.gigasource.p2p_client.constants;
 
 public class SocketEvent {
     public static final String P2P_EMIT = "P2P_EMIT";
