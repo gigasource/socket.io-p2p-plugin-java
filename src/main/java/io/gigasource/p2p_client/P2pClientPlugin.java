@@ -1,7 +1,6 @@
 package io.gigasource.p2p_client;
 
 import io.gigasource.p2p_client.constants.SocketEvent;
-import io.gigasource.p2p_client.exception.TargetDeviceUnavailableException;
 import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
@@ -10,7 +9,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.ea.async.Async.await;
 
 public class P2pClientPlugin extends Socket {
     private String targetClientId;
@@ -19,9 +20,9 @@ public class P2pClientPlugin extends Socket {
     private P2pClientPlugin(Manager io, String nsp, Manager.Options opts) {
         super(io, nsp, opts);
 
-        on(SocketEvent.P2P_REGISTER, (sourceClientId) -> {
+        on(SocketEvent.P2P_REGISTER, (args) -> {
             if (targetClientId == null) {
-                this.targetClientId = sourceClientId.toString();
+                this.targetClientId = (String) args[0];
                 emit(SocketEvent.P2P_REGISTER_SUCCESS);
             } else {
                 emit(SocketEvent.P2P_REGISTER_FAILED);
@@ -53,25 +54,26 @@ public class P2pClientPlugin extends Socket {
         }
     }
 
-    public void registerP2pTarget(String targetDeviceId, String options) {
-        CountDownLatch connectionLatch = new CountDownLatch(1);
+    public boolean registerP2pTarget(String targetClientId, String options) {
+        AtomicBoolean connectionSuccess = new AtomicBoolean();
 
-
-        CompletableFuture<Void> connectionResult = CompletableFuture.runAsync(() ->
-                emit(SocketEvent.P2P_REGISTER, new Object[]{targetDeviceId}, args -> {
+        CompletableFuture<Void> connectionAttempt = CompletableFuture.runAsync(() ->
+                emit(SocketEvent.P2P_REGISTER, new Object[]{targetClientId}, args -> {
                     if ((boolean) args[0]) { // if target is available
-                        this.options = options;
-                        this.targetClientId = targetDeviceId;
-                        connectionLatch.countDown();
+                        connectionSuccess.set(true);
                     } else {
-                        throw new TargetDeviceUnavailableException("Target device is not available for connection");
+                        connectionSuccess.set(false);
                     }
                 }));
 
-        try {
-            connectionLatch.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        await(connectionAttempt);
+
+        if (connectionSuccess.get()) {
+            this.options = options;
+            this.targetClientId = targetClientId;
+            return true;
+        } else {
+            return false;
         }
     }
 

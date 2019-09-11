@@ -17,10 +17,12 @@ public class ClientExample1 {
 
             p2pClientPlugin.connect();
 
-            p2pClientPlugin.registerP2pTarget("D2", null);
+            boolean connectionSuccess = p2pClientPlugin.registerP2pTarget("D2", null);
 
-            p2pClientPlugin.emit2("testNoAckFromJava", "hello", "abc", "def");
-            p2pClientPlugin.emit2("testAckFromJava", "from Java", (Ack) args1 -> System.out.println(Arrays.toString(args1)));
+            if (connectionSuccess) {
+                p2pClientPlugin.emit2("testNoAckFromJava", "hello", "abc", "def");
+                p2pClientPlugin.emit2("testAckFromJava", "from Java", (Ack) args1 -> System.out.println(Arrays.toString(args1)));
+            }
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
