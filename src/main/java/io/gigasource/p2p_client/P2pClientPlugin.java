@@ -30,7 +30,16 @@ public class P2pClientPlugin extends Socket {
             }
         });
 
-        on(SocketEvent.P2P_DISCONNECT, args -> targetClientId = null);
+        on(SocketEvent.P2P_DISCONNECT, args -> {
+            targetClientId = null;
+        });
+
+        on(SocketEvent.P2P_UNREGISTER, args -> {
+            targetClientId = null;
+        });
+
+        on(SocketEvent.SERVER_ERROR, args ->
+                System.out.println((String) args[0]));
     }
 
     public static P2pClientPlugin createInstance(Socket socket) {
@@ -48,7 +57,7 @@ public class P2pClientPlugin extends Socket {
 
     public void unregisterP2pTarget() {
         if (this.targetClientId != null) {
-            emit("disconnect");
+            emit(SocketEvent.P2P_UNREGISTER);
             this.targetClientId = null;
         }
     }

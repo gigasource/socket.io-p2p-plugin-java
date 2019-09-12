@@ -40,11 +40,17 @@ public class ClientExample1 {
                 p2pClientPlugin.emit2("testAckFromJava", "from Java", (Ack) args1 -> System.out.println(Arrays.toString(args1)));
                 p2pClientPlugin.on("testFromTarget", args1 -> {
                     System.out.println(Arrays.toString(args1));
+
+                    try {
+                        Thread.sleep(4000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    p2pClientPlugin.unregisterP2pTarget();
+                    System.out.println("unregister");
                 });
             }
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        } catch (JSONException e) {
+        } catch (URISyntaxException | JSONException e) {
             e.printStackTrace();
         }
     }
