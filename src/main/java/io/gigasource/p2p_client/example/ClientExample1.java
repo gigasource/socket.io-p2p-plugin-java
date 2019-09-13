@@ -46,7 +46,9 @@ public class ClientExample1 {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    p2pClientPlugin.unregisterP2pTarget();
+                    p2pClientPlugin.unregisterP2pTarget((args2) -> {
+                        System.out.println("Unregister done");
+                    });
                     System.out.println("unregister");
                 });
             }

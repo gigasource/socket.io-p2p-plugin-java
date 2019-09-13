@@ -1,6 +1,8 @@
 package io.gigasource.p2p_client;
 
 import io.gigasource.p2p_client.constants.SocketEvent;
+import io.gigasource.p2p_client.exception.InvalidSocketEventException;
+import io.gigasource.p2p_client.exception.InvalidTargetClientException;
 import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
@@ -17,6 +19,7 @@ import java.util.concurrent.ExecutionException;
 public class P2pClientPlugin extends Socket {
     private String targetClientId;
     private String options; // not yet used
+    private static String id;
 
     private P2pClientPlugin(Manager io, String nsp, Manager.Options opts) {
         super(io, nsp, opts);
@@ -31,11 +34,14 @@ public class P2pClientPlugin extends Socket {
         });
 
         on(SocketEvent.P2P_DISCONNECT, args -> {
-            targetClientId = null;
+            if (this.targetClientId != null) targetClientId = null;
         });
 
         on(SocketEvent.P2P_UNREGISTER, args -> {
-            targetClientId = null;
+            if (this.targetClientId != null) {
+                targetClientId = null;
+                ((Ack) args[0]).call();
+            }
         });
 
         on(SocketEvent.SERVER_ERROR, args ->
@@ -55,14 +61,22 @@ public class P2pClientPlugin extends Socket {
         }
     }
 
-    public void unregisterP2pTarget() {
+    public static P2pClientPlugin createInstance(Socket socket, String clientId) {
+        id = clientId;
+        return createInstance(socket);
+    }
+
+    public void unregisterP2pTarget(Ack ack) {
         if (this.targetClientId != null) {
-            emit(SocketEvent.P2P_UNREGISTER);
+            emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, ack::call);
             this.targetClientId = null;
         }
     }
 
     public boolean registerP2pTarget(String targetClientId, String options) {
+        if (targetClientId.equals(this.id))
+            throw new InvalidTargetClientException("Target client ID can not be the same as source client ID");
+
         CompletableFuture<Boolean> connectSuccess = new CompletableFuture<>();
 
         emit(SocketEvent.P2P_REGISTER, new Object[]{targetClientId}, args -> {
@@ -85,6 +99,12 @@ public class P2pClientPlugin extends Socket {
     }
 
     public void emit2(String event, Object... args) {
+        if (this.targetClientId == null)
+            throw new InvalidTargetClientException("emit2 must be called after targetClientId is set");
+
+        if (event == null)
+            throw new InvalidSocketEventException("event must be specified");
+
         int lastIndex = args.length - 1;
         boolean isAckCase = args.length > 0 && args[lastIndex] instanceof Ack;
 
@@ -140,5 +160,9 @@ public class P2pClientPlugin extends Socket {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public String getTargetClientId() {
+        return targetClientId;
     }
 }
