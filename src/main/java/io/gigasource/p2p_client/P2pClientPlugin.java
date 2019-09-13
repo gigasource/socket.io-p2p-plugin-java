@@ -70,6 +70,8 @@ public class P2pClientPlugin extends Socket {
         if (this.targetClientId != null) {
             emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, ack::call);
             this.targetClientId = null;
+        } else {
+            ack.call();
         }
     }
 
