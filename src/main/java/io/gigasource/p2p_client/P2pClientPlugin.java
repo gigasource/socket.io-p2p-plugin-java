@@ -121,9 +121,9 @@ public class P2pClientPlugin extends Socket {
                     newArgs[i] = args[i];
                 }
 
-                emitPayload.put("args", newArgs);
+                emitPayload.put("args", new JSONArray(newArgs));
             } else {
-                emitPayload.put("args", args);
+                emitPayload.put("args", new JSONArray(args));
             }
         } catch (JSONException e) {
             e.printStackTrace();
