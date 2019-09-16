@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'io.gigasource'
-version '1.1.2-SNAPSHOT'
+version '1.2.0-SNAPSHOT'
 
 sourceCompatibility = 1.8
 
@@ -13,7 +13,7 @@ repositories {
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.5.2'
     implementation 'io.socket:socket.io-client:1.0.0'
     implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.9'
-//    implementation 'com.ea.async:ea-async:1.2.3'
 }

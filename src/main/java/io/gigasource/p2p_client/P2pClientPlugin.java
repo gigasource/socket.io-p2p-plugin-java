@@ -1,6 +1,7 @@
 package io.gigasource.p2p_client;
 
 import io.gigasource.p2p_client.constants.SocketEvent;
+import io.gigasource.p2p_client.exception.InvalidConnectionStateException;
 import io.gigasource.p2p_client.exception.InvalidSocketEventException;
 import io.gigasource.p2p_client.exception.InvalidTargetClientException;
 import io.socket.client.Ack;
@@ -19,7 +20,7 @@ import java.util.concurrent.ExecutionException;
 public class P2pClientPlugin extends Socket {
     private String targetClientId;
     private String options; // not yet used
-    private static String id;
+    private String id;
 
     private P2pClientPlugin(Manager io, String nsp, Manager.Options opts) {
         super(io, nsp, opts);
@@ -62,22 +63,37 @@ public class P2pClientPlugin extends Socket {
     }
 
     public static P2pClientPlugin createInstance(Socket socket, String clientId) {
-        id = clientId;
-        return createInstance(socket);
+        P2pClientPlugin instance = createInstance(socket);
+
+        if (instance == null) return null;
+
+        instance.id = clientId;
+        return instance;
     }
 
-    public void unregisterP2pTarget(Ack ack) {
+    public void unregisterP2pTarget() {
+        CompletableFuture<Void> lock = new CompletableFuture<>();
+
         if (this.targetClientId != null) {
-            emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, ack::call);
+            emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, (args) -> {
+                lock.complete(null);
+            });
             this.targetClientId = null;
-        } else {
-            ack.call();
+        }
+
+        try {
+            lock.get(); // pause code execution until the lock completes
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
         }
     }
 
     public boolean registerP2pTarget(String targetClientId, String options) {
         if (targetClientId.equals(this.id))
             throw new InvalidTargetClientException("Target client ID can not be the same as source client ID");
+
+        if (this.targetClientId != null)
+            throw new InvalidConnectionStateException("Client is in connection, please unregister before registering again");
 
         CompletableFuture<Boolean> connectSuccess = new CompletableFuture<>();
 
@@ -166,5 +182,9 @@ public class P2pClientPlugin extends Socket {
 
     public String getTargetClientId() {
         return targetClientId;
+    }
+
+    public String getId() {
+        return id;
     }
 }
