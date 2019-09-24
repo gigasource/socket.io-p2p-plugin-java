@@ -28,7 +28,7 @@ public class P2pClientPlugin extends Socket {
         super(io, nsp, opts);
 
         on(SocketEvent.P2P_REGISTER, args -> {
-            if (targetClientId == null) {
+            if (targetClientId == null || targetClientId.equals(args[0])) {
                 this.targetClientId = (String) args[0];
                 ((Ack) args[1]).call(true);
             } else {
