@@ -1,4 +1,4 @@
-package io.gigasource.p2p_client.lib;
+package io.gigasource.p2p_client.api;
 
 import io.gigasource.p2p_client.P2pClientPlugin;
 import io.gigasource.p2p_client.constants.SocketEvent;
@@ -19,6 +19,7 @@ public class P2pStream {
     private int emitChunkSize = 1024;
     private Thread inputScanThread;
     private final Object inputReadThreadLock = new Object();
+    private boolean destroyed;
 
     public P2pStream(P2pClientPlugin p2pClientPlugin) {
         outputStreams = new ArrayList<>();
@@ -37,6 +38,7 @@ public class P2pStream {
             try {
                 for (OutputStream outputStream : outputStreams) {
                     outputStream.write(chunk);
+                    outputStream.flush();
                 }
             } catch (IOException e) {
                 System.err.println("Encounter error while writing to one of outputStreams");
@@ -59,13 +61,16 @@ public class P2pStream {
 
         try {
             if (inputScanThread != null) inputScanThread.interrupt();
-            inputStream.close();
+            if (inputStream != null) inputStream.close();
             for (OutputStream os : outputStreams) {
                 os.flush();
             }
+            outputStreams.clear();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        destroyed = true;
     }
 
     private Emitter.Listener destroyListener = args -> destroy();
@@ -75,19 +80,23 @@ public class P2pStream {
     // Methods for Streams
 
     public void addOutputStream(OutputStream outputStream) {
-        this.outputStreams.add(outputStream);
+        outputStreams.add(outputStream);
+    }
+
+    public void removeOutputStream(OutputStream outputStream) {
+        outputStreams.remove(outputStream);
     }
 
     public void setInputStream(InputStream inputStream) {
-        this.inputStream = inputStream;
-
         if (inputScanThread != null) inputScanThread.interrupt();
+
+        this.inputStream = inputStream;
         startScanningInputStream();
     }
 
     public void removeInputStream() {
         if (inputScanThread != null) inputScanThread.interrupt();
-        this.inputStream = null;
+        inputStream = null;
     }
 
     private void startScanningInputStream() {
@@ -97,7 +106,7 @@ public class P2pStream {
                     byte[] chunk = new byte[emitChunkSize];
                     int readLength;
 
-                    while ((readLength = this.inputStream.read(chunk)) != -1) {
+                    while ((readLength = inputStream.read(chunk)) != -1) {
                         if (readLength > 0) {
                             byte[] chunkToEmit = Arrays.copyOfRange(chunk, 0, readLength);
                             p2pClientPlugin.emit2(SocketEvent.P2P_EMIT_STREAM, chunkToEmit, (Ack) args -> {
@@ -122,5 +131,9 @@ public class P2pStream {
 
     public P2pClientPlugin getP2pClientPlugin() {
         return p2pClientPlugin;
+    }
+
+    public boolean isDestroyed() {
+        return destroyed;
     }
 }

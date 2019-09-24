@@ -4,6 +4,7 @@ import io.gigasource.p2p_client.constants.SocketEvent;
 import io.gigasource.p2p_client.exception.InvalidConnectionStateException;
 import io.gigasource.p2p_client.exception.InvalidSocketEventException;
 import io.gigasource.p2p_client.exception.InvalidTargetClientException;
+import io.gigasource.p2p_client.api.P2pStream;
 import io.socket.client.Ack;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
@@ -16,21 +17,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 public class P2pClientPlugin extends Socket {
     private String targetClientId;
-    private String options; // not yet used
+    private String connectionOpts; // not yet used
     private String id;
 
     private P2pClientPlugin(Manager io, String nsp, Manager.Options opts) {
         super(io, nsp, opts);
 
-        on(SocketEvent.P2P_REGISTER, (args) -> {
+        on(SocketEvent.P2P_REGISTER, args -> {
             if (targetClientId == null) {
                 this.targetClientId = (String) args[0];
-                emit(SocketEvent.P2P_REGISTER_SUCCESS);
+                ((Ack) args[1]).call(true);
             } else {
-                emit(SocketEvent.P2P_REGISTER_FAILED);
+                ((Ack) args[1]).call(false);
             }
         });
 
@@ -47,6 +49,8 @@ public class P2pClientPlugin extends Socket {
 
         on(SocketEvent.SERVER_ERROR, args ->
                 System.out.println((String) args[0]));
+
+        on(SocketEvent.P2P_REGISTER_STREAM, args -> ((Ack) args[0]).call(false));
     }
 
     public static P2pClientPlugin createInstance(Socket socket) {
@@ -72,14 +76,12 @@ public class P2pClientPlugin extends Socket {
     }
 
     public void unregisterP2pTarget() {
+        if (this.targetClientId == null) return;
+
         CompletableFuture<Void> lock = new CompletableFuture<>();
 
-        if (this.targetClientId != null) {
-            emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, (args) -> {
-                lock.complete(null);
-            });
-            this.targetClientId = null;
-        }
+        emit(SocketEvent.P2P_UNREGISTER, new Object[]{}, args -> lock.complete(null));
+        this.targetClientId = null;
 
         try {
             lock.get(); // pause code execution until the lock completes
@@ -88,7 +90,7 @@ public class P2pClientPlugin extends Socket {
         }
     }
 
-    public boolean registerP2pTarget(String targetClientId, String options) {
+    public boolean registerP2pTarget(String targetClientId, String connectionOpts) {
         if (targetClientId.equals(this.id))
             throw new InvalidTargetClientException("Target client ID can not be the same as source client ID");
 
@@ -99,7 +101,7 @@ public class P2pClientPlugin extends Socket {
 
         emit(SocketEvent.P2P_REGISTER, new Object[]{targetClientId}, args -> {
             if ((boolean) args[0]) { // if target is available
-                this.options = options;
+                this.connectionOpts = connectionOpts;
                 this.targetClientId = targetClientId;
                 connectSuccess.complete(true);
             } else {
@@ -153,8 +155,40 @@ public class P2pClientPlugin extends Socket {
         }
     }
 
-    public List<String> getClientList() {
+    public P2pStream registerP2pStream() {
+        CompletableFuture<P2pStream> lock = new CompletableFuture<>();
 
+        emit(SocketEvent.P2P_REGISTER_STREAM, new Object[]{this.targetClientId}, args -> {
+            if ((boolean) args[0]) {
+                P2pStream duplexStream = new P2pStream(this);
+                lock.complete(duplexStream);
+            } else {
+                lock.complete(null);
+            }
+        });
+
+        try {
+            return lock.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public void onRegisterP2pStream(Function<P2pStream, Void> callback) {
+        off(SocketEvent.P2P_REGISTER_STREAM);
+        on(SocketEvent.P2P_REGISTER_STREAM, (args) -> {
+            P2pStream duplexStream = new P2pStream(this);
+            if (callback != null) callback.apply(duplexStream); // return a Duplex to the listening client
+            ((Ack) args[0]).call(true); // return result to peer to create stream on the other end of the connection
+        });
+    }
+
+    public void offRegisterP2pStream() {
+        off(SocketEvent.P2P_REGISTER_STREAM);
+    }
+
+    public List<String> getClientList() {
         CompletableFuture<List<String>> clientListRequest = new CompletableFuture<>();
 
         emit(SocketEvent.LIST_CLIENTS, new Object[]{}, args -> {
