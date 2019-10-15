@@ -1,9 +1,6 @@
 import io.gigasource.p2p_client.P2pClientPlugin;
-import io.gigasource.p2p_client.api.P2pStream;
+import io.gigasource.p2p_client.api.one_to_one_connection.Duplex;
 import io.gigasource.p2p_client.constants.SocketEvent;
-import io.gigasource.p2p_client.exception.InvalidConnectionStateException;
-import io.gigasource.p2p_client.exception.InvalidTargetClientException;
-import io.socket.client.Ack;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import org.junit.After;
@@ -12,10 +9,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import java.net.URISyntaxException;
-import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
 
@@ -66,7 +60,7 @@ public class StreamApiTest {
         assertTrue(connectionSuccess);
 
         client2.onRegisterP2pStream(null);
-        P2pStream stream = client1.registerP2pStream();
+        Duplex stream = client1.registerP2pStream();
 
         assertEquals(1, client1.listeners(SocketEvent.P2P_EMIT_STREAM).size());
         assertEquals(2, client1.listeners(SocketEvent.P2P_UNREGISTER).size());
@@ -81,7 +75,7 @@ public class StreamApiTest {
         assertTrue(connectionSuccess);
 
         client2.onRegisterP2pStream(null);
-        P2pStream stream = client1.registerP2pStream();
+        Duplex stream = client1.registerP2pStream();
         stream.destroy();
 
         assertEquals(0, client1.listeners(SocketEvent.P2P_EMIT_STREAM).size());

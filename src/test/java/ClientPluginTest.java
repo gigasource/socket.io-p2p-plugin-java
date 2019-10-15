@@ -1,5 +1,5 @@
 import io.gigasource.p2p_client.P2pClientPlugin;
-import io.gigasource.p2p_client.api.P2pStream;
+import io.gigasource.p2p_client.api.one_to_one_connection.Duplex;
 import io.gigasource.p2p_client.constants.SocketEvent;
 import io.gigasource.p2p_client.exception.InvalidConnectionStateException;
 import io.gigasource.p2p_client.exception.InvalidTargetClientException;
@@ -366,7 +366,7 @@ public class ClientPluginTest {
         boolean connectionSuccess = client1.registerP2pTarget(client2.getId(), null);
         assertTrue(connectionSuccess);
 
-        P2pStream stream = client1.registerP2pStream();
+        Duplex stream = client1.registerP2pStream();
         assertEquals(null, stream);
     }
 
@@ -377,8 +377,8 @@ public class ClientPluginTest {
         assertTrue(connectionSuccess);
 
         client2.onRegisterP2pStream(null);
-        P2pStream stream = client1.registerP2pStream();
-        assertEquals(true, stream instanceof P2pStream);
+        Duplex stream = client1.registerP2pStream();
+        assertEquals(true, stream instanceof Duplex);
     }
 
     @Test
