@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <metadata>
   <groupId>io.gigasource</groupId>
-  <artifactId>io.gigasource.socketio-p2p-plugin-java-client</artifactId>
+  <artifactId>socketio-p2p-plugin-java-client</artifactId>
   <versioning>
     <versions>
       <version>1.3.0-SNAPSHOT</version>
     </versions>
-    <lastUpdated>20191016032212</lastUpdated>
+    <lastUpdated>20191016040241</lastUpdated>
   </versioning>
 </metadata>
