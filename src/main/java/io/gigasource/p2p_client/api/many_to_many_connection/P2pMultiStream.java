@@ -1,11 +1,10 @@
 package io.gigasource.p2p_client.api.many_to_many_connection;
 
-import io.gigasource.p2p_client.api.many_to_many_connection.Duplex;
 import io.gigasource.p2p_client.constants.SocketEvent;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
 import java9.util.concurrent.CompletableFuture;
-import java9.util.function.Function;
+import java9.util.function.Consumer;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -59,7 +58,7 @@ public class P2pMultiStream {
         }
     }
 
-    public void onAddP2pStream(Function<Duplex, ?> callback) {
+    public void onAddP2pStream(Consumer<Duplex> callback) {
         offAddP2pStream();
         socket.on(SocketEvent.MULTI_API_CREATE_STREAM, args -> {
             JSONObject connectionInfo = (JSONObject) args[0];
@@ -77,7 +76,7 @@ public class P2pMultiStream {
             }
 
             Duplex duplexStream = new Duplex(socket, p2pMultiMessageApi, targetClientId, sourceStreamId, targetStreamId);
-            if (callback != null) callback.apply(duplexStream); // return a Duplex to the listening client
+            if (callback != null) callback.accept(duplexStream); // return a Duplex to the listening client
             ((Ack) args[1]).call(true); // return result to peer to create stream on the other end of the connection
         });
     }

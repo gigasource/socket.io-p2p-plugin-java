@@ -17,7 +17,6 @@ public class Client1 {
 
             p2pClientPlugin.onAddP2pStream(duplex -> {
                 duplex.addOutputStream(System.out);
-                return null;
             });
         } catch (URISyntaxException e) {
             e.printStackTrace();

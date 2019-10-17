@@ -4,7 +4,7 @@ import io.gigasource.p2p_client.constants.SocketEvent;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
 import java9.util.concurrent.CompletableFuture;
-import java9.util.function.Function;
+import java9.util.function.Consumer;
 
 import java.util.concurrent.ExecutionException;
 
@@ -41,11 +41,11 @@ public class P2pStream {
         }
     }
 
-    public void onRegisterP2pStream(Function<Duplex, ?> callback) {
+    public void onRegisterP2pStream(Consumer<Duplex> callback) {
         socket.off(SocketEvent.P2P_REGISTER_STREAM);
         socket.on(SocketEvent.P2P_REGISTER_STREAM, (args) -> {
             Duplex duplexStream = new Duplex(socket, p2pMessageApi);
-            if (callback != null) callback.apply(duplexStream); // return a Duplex to the listening client
+            if (callback != null) callback.accept(duplexStream); // return a Duplex to the listening client
             ((Ack) args[0]).call(true); // return result to peer to create stream on the other end of the connection
         });
     }

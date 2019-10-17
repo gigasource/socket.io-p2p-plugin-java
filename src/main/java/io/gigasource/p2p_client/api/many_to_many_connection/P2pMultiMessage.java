@@ -6,6 +6,7 @@ import io.gigasource.p2p_client.exception.InvalidTargetClientException;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import java9.util.function.Consumer;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -14,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java9.util.function.Function;
 
 public class P2pMultiMessage {
     private Socket socket;
@@ -53,8 +53,8 @@ public class P2pMultiMessage {
         socket.emit(SocketEvent.MULTI_API_ADD_TARGET, payload);
     }
 
-    public void onAddP2pTarget(Function<String, ?> callback) {
-        socket.on(SocketEvent.MULTI_API_ADD_TARGET, args -> callback.apply((String) args[0]));
+    public void onAddP2pTarget(Consumer<String> callback) {
+        socket.on(SocketEvent.MULTI_API_ADD_TARGET, args -> callback.accept((String) args[0]));
     }
 
     public P2pMultiMessage from(String targetClientId) {
@@ -63,19 +63,29 @@ public class P2pMultiMessage {
     }
 
     public void on(String event, Emitter.Listener callback) {
-        event = event + "-from-" + currentTargetId;
+        String targetId = currentTargetId;
+        event = event + "-from-" + targetId;
         socket.on(event, callback);
 
-        listenerMap.computeIfAbsent(currentTargetId, k -> new ArrayList<>());
-        listenerMap.get(currentTargetId).add(event);
+        if (!listenerMap.containsKey(targetId)) {
+            listenerMap.put(targetId, new ArrayList<>());
+        }
+        listenerMap.get(targetId).add(event);
+    }
+
+    public void off(String event, Emitter.Listener callback) {
+        String eventName = event + "-from-" + currentTargetId;
+
+        if (callback != null) socket.off(eventName, callback);
+        else socket.off(eventName);
     }
 
     public void emitTo(String targetClientId, String event, Object... args) {
         if (targetClientId == null)
-            throw new InvalidTargetClientException("socket.emit2 must be called after targetClientId is set");
+            throw new InvalidTargetClientException("targetClientId can not be null");
 
         if (event == null)
-            throw new InvalidSocketEventException("event must be specified");
+            throw new InvalidSocketEventException("event can not be null");
 
         int lastIndex = args.length - 1;
         boolean isAckCase = args.length > 0 && args[lastIndex] instanceof Ack;
@@ -87,9 +97,7 @@ public class P2pMultiMessage {
 
             if (isAckCase) {
                 Object[] newArgs = new Object[lastIndex];
-                for (int i = 0; i < lastIndex; i++) {
-                    newArgs[i] = args[i];
-                }
+                System.arraycopy(args, 0, newArgs, 0, lastIndex);
 
                 emitPayload.put("args", new JSONArray(newArgs));
             } else {

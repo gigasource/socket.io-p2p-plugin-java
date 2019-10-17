@@ -4,6 +4,7 @@ import io.gigasource.p2p_client.constants.SocketEvent;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
+import java9.util.function.Consumer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +22,7 @@ public class Duplex {
     private Thread inputScanThread;
     private final Object inputReadThreadLock = new Object();
     private boolean destroyed;
+    private List<Consumer<Void>> destroyCallbacks;
 
     private String targetClientId;
     private String sourceStreamId;
@@ -34,6 +36,7 @@ public class Duplex {
         this.targetClientId = targetClientId;
         this.sourceStreamId = sourceStreamId;
         this.targetStreamId = targetStreamId;
+        this.destroyCallbacks = new ArrayList<>();
 
         addSocketListeners();
     }
@@ -73,6 +76,13 @@ public class Duplex {
             outputStreams.clear();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+        if (!destroyCallbacks.isEmpty()) {
+            for (Consumer<Void> destroyCallback : destroyCallbacks) {
+                destroyCallback.accept(null);
+            }
+            destroyCallbacks.clear();
         }
 
         destroyed = true;
@@ -156,5 +166,13 @@ public class Duplex {
 
     public boolean isDestroyed() {
         return destroyed;
+    }
+
+    public void onDestroy(Consumer<Void> callback) {
+        destroyCallbacks.add(callback);
+    }
+
+    public String getTargetClientId() {
+        return targetClientId;
     }
 }

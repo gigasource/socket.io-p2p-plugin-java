@@ -7,7 +7,7 @@ import io.gigasource.p2p_client.api.one_to_one_connection.P2pMessage;
 import io.gigasource.p2p_client.api.one_to_one_connection.P2pStream;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
-import java9.util.function.Function;
+import java9.util.function.Consumer;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
 import java.util.List;
@@ -66,7 +66,7 @@ public class P2pClientPlugin extends Socket {
     public Duplex registerP2pStream() {
         return p2pStreamApi.registerP2pStream();
     }
-    public void onRegisterP2pStream(Function<Duplex, Void> callback) {
+    public void onRegisterP2pStream(Consumer<Duplex> callback) {
         p2pStreamApi.onRegisterP2pStream(callback);
     }
     public void offRegisterP2pStream() {
@@ -77,11 +77,14 @@ public class P2pClientPlugin extends Socket {
     public void addP2pTarget(String targetClientId) {
         p2pMultiMessageApi.addP2pTarget(targetClientId);
     }
-    public void onAddP2pTarget(Function<String, ?> callback) {
+    public void onAddP2pTarget(Consumer<String> callback) {
         p2pMultiMessageApi.onAddP2pTarget(callback);
     }
     public P2pMultiMessage from(String targetClientId) {
         return p2pMultiMessageApi.from(targetClientId);
+    }
+    public void emitTo(String targetClientId, String event) {
+        p2pMultiMessageApi.emitTo(targetClientId, event, (Object) null);
     }
     public void emitTo(String targetClientId, String event, Object[] args) {
         p2pMultiMessageApi.emitTo(targetClientId, event, args);
@@ -91,7 +94,7 @@ public class P2pClientPlugin extends Socket {
     public io.gigasource.p2p_client.api.many_to_many_connection.Duplex addP2pStream(String targetClientId) {
         return p2pMultiStreamApi.addP2pStream(targetClientId);
     }
-    public void onAddP2pStream(Function<io.gigasource.p2p_client.api.many_to_many_connection.Duplex, ?> callback) {
+    public void onAddP2pStream(Consumer<io.gigasource.p2p_client.api.many_to_many_connection.Duplex> callback) {
         p2pMultiStreamApi.onAddP2pStream(callback);
     }
     public void offAddP2pStream() {
