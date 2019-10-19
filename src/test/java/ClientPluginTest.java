@@ -1,4 +1,5 @@
 import io.gigasource.p2p_client.P2pClientPlugin;
+import io.gigasource.p2p_client.api.one_to_one_connection.Duplex;
 import io.gigasource.p2p_client.constants.SocketEvent;
 import io.gigasource.p2p_client.exception.InvalidConnectionStateException;
 import io.gigasource.p2p_client.exception.InvalidTargetClientException;
@@ -43,6 +44,12 @@ public class ClientPluginTest {
         client2 = createClient();
         client3 = createClient();
         client4 = createClient();
+
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @After
@@ -353,6 +360,40 @@ public class ClientPluginTest {
         assertFalse(clientList.contains(client3.getId()));
     }*/
 
+    @Test
+    @Category(RegisterP2pStreamFnTest.class)
+    public void shouldReturnNullIfPeerNotListening() {
+        boolean connectionSuccess = client1.registerP2pTarget(client2.getId(), null);
+        assertTrue(connectionSuccess);
+
+        Duplex stream = client1.registerP2pStream();
+        assertEquals(null, stream);
+    }
+
+    @Test
+    @Category(RegisterP2pStreamFnTest.class)
+    public void shouldReturnP2pStreamIfPeerIsListening() {
+        boolean connectionSuccess = client1.registerP2pTarget(client2.getId(), null);
+        assertTrue(connectionSuccess);
+
+        client2.onRegisterP2pStream(null);
+        Duplex stream = client1.registerP2pStream();
+        assertEquals(true, stream instanceof Duplex);
+    }
+
+    @Test
+    @Category(OnRegisterP2pStreamFnTest.class)
+    public void shouldRemoveOldListeners() {
+        boolean connectionSuccess = client1.registerP2pTarget(client2.getId(), null);
+        assertTrue(connectionSuccess);
+
+        client2.onRegisterP2pStream(null);
+        client2.onRegisterP2pStream(null);
+        client2.onRegisterP2pStream(null);
+
+        assertEquals(1, client2.listeners(SocketEvent.P2P_REGISTER_STREAM).size());
+    }
+
     private interface RegisterP2pTargetFnTest {
     }
 
@@ -369,5 +410,11 @@ public class ClientPluginTest {
     }
 
     private interface GetClientListFnTest {
+    }
+
+    private interface RegisterP2pStreamFnTest {
+    }
+
+    private interface OnRegisterP2pStreamFnTest {
     }
 }

@@ -12,7 +12,7 @@ public class ClientExample2 {
     public static void main(String[] args) {
         try {
             Socket socket = IO.socket("http://localhost:9000?clientId=D2");
-            P2pClientPlugin p2pClientPlugin = P2pClientPlugin.createInstance(socket);
+            P2pClientPlugin p2pClientPlugin = P2pClientPlugin.createInstance(socket, "D2");
             p2pClientPlugin.connect();
 
             p2pClientPlugin.on("testNoAckFromJava", (arguments) -> System.out.println(Arrays.toString(arguments)));

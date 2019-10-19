@@ -16,7 +16,7 @@ public class ClientExample3 {
         try {
             Socket socket = IO.socket("http://localhost:9000?clientId=D3");
 
-            P2pClientPlugin p2pClientPlugin = P2pClientPlugin.createInstance(socket);
+            P2pClientPlugin p2pClientPlugin = P2pClientPlugin.createInstance(socket, "D3");
 
             p2pClientPlugin.connect();
 
