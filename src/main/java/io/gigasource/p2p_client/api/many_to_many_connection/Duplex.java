@@ -67,6 +67,7 @@ public class Duplex {
     }
 
     public void destroy() {
+        removeSocketListeners();
         try {
             if (inputScanThread != null) inputScanThread.interrupt();
             if (inputStream != null) inputStream.close();
@@ -89,12 +90,12 @@ public class Duplex {
     }
 
     private void removeSocketListeners() {
+        p2pMultiMessageApi.from(targetClientId).off(SocketEvent.P2P_EMIT_STREAM + "-from-stream-" + targetStreamId, null);
         socket.off("disconnect", onDisconnect);
         socket.off(SocketEvent.MULTI_API_TARGET_DISCONNECT, onTargetDisconnect);
     }
 
     private Emitter.Listener onDisconnect = args -> {
-        removeSocketListeners();
         if (!destroyed) destroy();
     };
 
@@ -102,7 +103,6 @@ public class Duplex {
         String targetClientId = (String) args[0];
 
         if (this.targetClientId.equals(targetClientId)) {
-            removeSocketListeners();
             if (!destroyed) destroy();
         }
     };
@@ -119,15 +119,14 @@ public class Duplex {
         outputStreams.remove(outputStream);
     }
 
-    public void setInputStream(InputStream inputStream) {
-        if (inputScanThread != null) inputScanThread.interrupt();
+    public void clearOutputStreams() { outputStreams.clear(); }
 
+    public void setInputStream(InputStream inputStream) {
         this.inputStream = inputStream;
-        startScanningInputStream();
+        if (inputScanThread == null) startScanningInputStream();
     }
 
     public void removeInputStream() {
-        if (inputScanThread != null) inputScanThread.interrupt();
         inputStream = null;
     }
 
@@ -174,5 +173,9 @@ public class Duplex {
 
     public String getTargetClientId() {
         return targetClientId;
+    }
+
+    public String getTargetStreamId() {
+        return targetStreamId;
     }
 }
