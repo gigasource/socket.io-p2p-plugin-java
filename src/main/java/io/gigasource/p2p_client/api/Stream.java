@@ -1,6 +1,8 @@
-package io.gigasource.p2p_client.api.many_to_many_connection;
+package io.gigasource.p2p_client.api;
 
+import io.gigasource.p2p_client.api.object.stream.Duplex;
 import io.gigasource.p2p_client.constants.SocketEvent;
+import io.gigasource.p2p_client.exception.P2pStreamException;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
 import java9.util.concurrent.CompletableFuture;
@@ -9,22 +11,22 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
-public class P2pMultiStream {
+public class Stream {
     private Socket socket;
-    private P2pMultiMessage p2pMultiMessageApi;
+    private Message messageApi;
     private String clientId;
 
-    public P2pMultiStream(Socket socket, P2pMultiMessage p2pMultiMessageApi) {
+    public Stream(Socket socket, Message messageApi) {
         this.socket = socket;
-        this.p2pMultiMessageApi = p2pMultiMessageApi;
-        clientId = p2pMultiMessageApi.getClientId();
+        this.messageApi = messageApi;
+        clientId = messageApi.getClientId();
 
-        socket.on(SocketEvent.MULTI_API_CREATE_STREAM, args -> ((Ack) args[0]).call(false));
+        socket.on(SocketEvent.MULTI_API_CREATE_STREAM, args ->
+                ((Ack) args[1]).call("Client is not listening to create stream event"));
     }
 
-    public Duplex addP2pStream(String targetClientId) {
+    public Duplex addP2pStream(String targetClientId) throws P2pStreamException {
         JSONObject payload = new JSONObject();
         String sourceStreamId = UUID.randomUUID().toString();
         String targetStreamId = UUID.randomUUID().toString();
@@ -32,30 +34,23 @@ public class P2pMultiStream {
         try {
             payload.put("sourceStreamId", sourceStreamId);
             payload.put("targetStreamId", targetStreamId);
-            payload.put("sourceClientId", clientId);
+            // sourceClientId will be set on server
             payload.put("targetClientId", targetClientId);
         } catch (JSONException e) {
             e.printStackTrace();
             return null;
         }
 
-        CompletableFuture<Duplex> lock = new CompletableFuture<>();
+        CompletableFuture<String> lock = new CompletableFuture<>();
 
-        socket.emit(SocketEvent.MULTI_API_CREATE_STREAM, new Object[]{payload}, args -> {
-            if ((boolean) args[0]) {
-                Duplex duplexStream = new Duplex(socket, p2pMultiMessageApi, targetClientId, sourceStreamId, targetStreamId);
-                lock.complete(duplexStream);
-            } else {
-                lock.complete(null);
-            }
+        socket.emit(SocketEvent.MULTI_API_CREATE_STREAM, payload, (Ack) args -> {
+            if (args.length == 0) lock.complete(null);
+            else lock.complete(args[0].toString());
         });
 
-        try {
-            return lock.get();
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            return null;
-        }
+        String err =  lock.join();
+        if (err != null) throw new P2pStreamException(err);
+        else return new Duplex(socket, messageApi, targetClientId, sourceStreamId, targetStreamId);
     }
 
     public void onAddP2pStream(Consumer<Duplex> callback) {
@@ -75,9 +70,9 @@ public class P2pMultiStream {
                 return;
             }
 
-            Duplex duplexStream = new Duplex(socket, p2pMultiMessageApi, targetClientId, sourceStreamId, targetStreamId);
-            if (callback != null) callback.accept(duplexStream); // return a Duplex to the listening client
-            ((Ack) args[1]).call(true); // return result to peer to create stream on the other end of the connection
+            Duplex duplex = new Duplex(socket, messageApi, targetClientId, sourceStreamId, targetStreamId);
+            if (callback != null) callback.accept(duplex); // return a Duplex to the listening client
+            ((Ack) args[1]).call(); // notify peer that the duplex has been created
         });
     }
 

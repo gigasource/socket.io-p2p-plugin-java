@@ -1,5 +1,6 @@
-package io.gigasource.p2p_client.api.many_to_many_connection;
+package io.gigasource.p2p_client.api.object.stream;
 
+import io.gigasource.p2p_client.api.Message;
 import io.gigasource.p2p_client.constants.SocketEvent;
 import io.socket.client.Ack;
 import io.socket.client.Socket;
@@ -15,7 +16,7 @@ import java.util.List;
 
 public class Duplex {
     private Socket socket;
-    private P2pMultiMessage p2pMultiMessageApi;
+    private Message messageApi;
     private List<OutputStream> outputStreams;
     private InputStream inputStream;
     private int emitChunkSize = 1024;
@@ -28,11 +29,11 @@ public class Duplex {
     private String sourceStreamId;
     private String targetStreamId;
 
-    Duplex(Socket socket, P2pMultiMessage p2pMultiMessageApi, String targetClientId, String sourceStreamId, String targetStreamId) {
+    public Duplex(Socket socket, Message messageApi, String targetClientId, String sourceStreamId, String targetStreamId) {
         outputStreams = new ArrayList<>();
 
         this.socket = socket;
-        this.p2pMultiMessageApi = p2pMultiMessageApi;
+        this.messageApi = messageApi;
         this.targetClientId = targetClientId;
         this.sourceStreamId = sourceStreamId;
         this.targetStreamId = targetStreamId;
@@ -41,32 +42,62 @@ public class Duplex {
         addSocketListeners();
     }
 
+    private Emitter.Listener onReceiveStreamData = args -> {
+        byte[] chunk = (byte[]) args[0];
+        Ack ackFn = (Ack) args[1];
+
+        try {
+            for (OutputStream outputStream : outputStreams) {
+                outputStream.write(chunk);
+                outputStream.flush();
+            }
+        } catch (IOException e) {
+            System.err.println("Encounter error while writing to one of outputStreams");
+            e.printStackTrace();
+        }
+
+        ackFn.call();
+    };
+
+    private Emitter.Listener onDisconnect = args -> destroy();
+
+    private Emitter.Listener onTargetDisconnect = args -> {
+        String targetClientId = (String) args[0];
+
+        if (this.targetClientId.equals(targetClientId)) destroy();
+    };
+
+    private Emitter.Listener onTargetStreamDestroyed = args -> {
+        String targetStreamId = (String) args[0];
+
+        if (this.targetStreamId.equals(targetStreamId)) destroy();
+    };
+
     // Socket.IO listeners
     private void addSocketListeners() {
-        String event = SocketEvent.P2P_EMIT_STREAM + "-from-stream-" + targetStreamId;
+        String sendDataEvent = SocketEvent.P2P_EMIT_STREAM + SocketEvent.STREAM_IDENTIFIER_PREFIX + targetStreamId;
 
-        p2pMultiMessageApi.from(targetClientId).on(event, args -> {
-            byte[] chunk = (byte[]) args[0];
-            Ack ackFn = (Ack) args[1];
-
-            try {
-                for (OutputStream outputStream : outputStreams) {
-                    outputStream.write(chunk);
-                    outputStream.flush();
-                }
-            } catch (IOException e) {
-                System.err.println("Encounter error while writing to one of outputStreams");
-                e.printStackTrace();
-            }
-
-            ackFn.call();
-        });
+        messageApi.from(targetClientId).on(sendDataEvent, onReceiveStreamData);
+        messageApi.from(targetClientId).on(SocketEvent.PEER_STREAM_DESTROYED, onTargetStreamDestroyed);
 
         socket.once("disconnect", onDisconnect);
         socket.on(SocketEvent.MULTI_API_TARGET_DISCONNECT, onTargetDisconnect);
     }
 
+    private void removeSocketListeners() {
+        String sendDataEvent = SocketEvent.P2P_EMIT_STREAM + SocketEvent.STREAM_IDENTIFIER_PREFIX + targetStreamId;
+
+        messageApi.from(targetClientId).off(sendDataEvent);
+        messageApi.from(targetClientId).off(SocketEvent.PEER_STREAM_DESTROYED, onTargetStreamDestroyed);
+
+        socket.off("disconnect", onDisconnect);
+        socket.off(SocketEvent.MULTI_API_TARGET_DISCONNECT, onTargetDisconnect);
+    }
+
     public void destroy() {
+        if (destroyed) return;
+
+        messageApi.emitTo(targetClientId, SocketEvent.PEER_STREAM_DESTROYED, sourceStreamId);
         removeSocketListeners();
         try {
             if (inputScanThread != null) inputScanThread.interrupt();
@@ -88,24 +119,6 @@ public class Duplex {
 
         destroyed = true;
     }
-
-    private void removeSocketListeners() {
-        p2pMultiMessageApi.from(targetClientId).off(SocketEvent.P2P_EMIT_STREAM + "-from-stream-" + targetStreamId, null);
-        socket.off("disconnect", onDisconnect);
-        socket.off(SocketEvent.MULTI_API_TARGET_DISCONNECT, onTargetDisconnect);
-    }
-
-    private Emitter.Listener onDisconnect = args -> {
-        if (!destroyed) destroy();
-    };
-
-    private Emitter.Listener onTargetDisconnect = args -> {
-        String targetClientId = (String) args[0];
-
-        if (this.targetClientId.equals(targetClientId)) {
-            if (!destroyed) destroy();
-        }
-    };
 
     // ------------------------------------------------------------------------
 
@@ -143,7 +156,7 @@ public class Duplex {
 
                             String event = SocketEvent.P2P_EMIT_STREAM + "-from-stream-" + sourceStreamId;
 
-                            p2pMultiMessageApi.emitTo(targetClientId, event, chunkToEmit, (Ack) args -> {
+                            messageApi.emitTo(targetClientId, event, chunkToEmit, (Ack) args -> {
                                 synchronized (inputReadThreadLock) {
                                     inputReadThreadLock.notify();
                                 }

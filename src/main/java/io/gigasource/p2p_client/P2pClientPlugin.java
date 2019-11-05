@@ -1,25 +1,28 @@
 package io.gigasource.p2p_client;
 
-import io.gigasource.p2p_client.api.many_to_many_connection.P2pMultiMessage;
-import io.gigasource.p2p_client.api.many_to_many_connection.P2pMultiStream;
-import io.gigasource.p2p_client.api.one_to_one_connection.Duplex;
-import io.gigasource.p2p_client.api.one_to_one_connection.P2pMessage;
-import io.gigasource.p2p_client.api.one_to_one_connection.P2pStream;
+import io.gigasource.p2p_client.api.Core;
+import io.gigasource.p2p_client.api.object.stream.Duplex;
+import io.gigasource.p2p_client.api.Message;
+import io.gigasource.p2p_client.api.Stream;
+import io.gigasource.p2p_client.exception.P2pStreamException;
+import io.gigasource.p2p_client.exception.TargetClientException;
 import io.socket.client.Manager;
 import io.socket.client.Socket;
+import io.socket.emitter.Emitter;
 import java9.util.function.Consumer;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
-import java.util.List;
 
 public class P2pClientPlugin extends Socket {
-    private static P2pMessage p2pMessageApi;
-    private static P2pStream p2pStreamApi;
-    private static P2pMultiMessage p2pMultiMessageApi;
-    private static P2pMultiStream p2pMultiStreamApi;
+    private Core coreApi;
+    private Message messageApi;
+    private Stream streamApi;
 
-    private P2pClientPlugin(Manager io, String nsp, Manager.Options opts) {
+    private P2pClientPlugin(Manager io, String nsp, Manager.Options opts, String clientId) {
         super(io, nsp, opts);
+
+        messageApi = new Message(this, clientId);
+        streamApi = new Stream(this, messageApi);
     }
 
     public static P2pClientPlugin createInstance(Socket socket, String clientId) {
@@ -28,76 +31,53 @@ public class P2pClientPlugin extends Socket {
             String nsp = (String) FieldUtils.readField(socket, "nsp", true);
             Manager.Options opts = (Manager.Options) FieldUtils.readField(io, "opts", true);
 
-            P2pClientPlugin instance = new P2pClientPlugin(io, nsp, opts);
-
-            p2pMessageApi = new P2pMessage(instance, clientId);
-            p2pStreamApi = new P2pStream(instance, p2pMessageApi);
-            p2pMultiMessageApi = new P2pMultiMessage(instance, clientId);
-            p2pMultiStreamApi = new P2pMultiStream(instance, p2pMultiMessageApi);
-
-            return instance;
+            return new P2pClientPlugin(io, nsp, opts, clientId);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    // P2pMessage API
-    public void unregisterP2pTarget() {
-        p2pMessageApi.unregisterP2pTarget();
+    // Core API
+    public void joinRoom(Object... args) {
+        coreApi.joinRoom(args);
     }
-    public boolean registerP2pTarget(String targetClientId, String connectionOpts) {
-        return p2pMessageApi.registerP2pTarget(targetClientId, connectionOpts);
+    public void leaveRoom(Object... args) {
+        coreApi.leaveRoom(args);
     }
-    public void emit2(String event, Object... args) {
-        p2pMessageApi.emit2(event, args);
-    }
-    public List<String> getClientList() {
-        return p2pMessageApi.getClientList();
-    }
-    public String getTargetClientId() {
-        return p2pMessageApi.getTargetClientId();
-    }
-    public String getId() {
-        return p2pMessageApi.getClientId();
+    public void emitRoom(Object... args) {
+        coreApi.emitRoom(args);
     }
 
-    // P2pStream API
-    public Duplex registerP2pStream() {
-        return p2pStreamApi.registerP2pStream();
-    }
-    public void onRegisterP2pStream(Consumer<Duplex> callback) {
-        p2pStreamApi.onRegisterP2pStream(callback);
-    }
-    public void offRegisterP2pStream() {
-        p2pStreamApi.offRegisterP2pStream();
-    }
+    //todo: getClientList
 
-    // P2pMultiMessage API
-    public void addP2pTarget(String targetClientId) {
-        p2pMultiMessageApi.addP2pTarget(targetClientId);
+    // Message API
+    public void addP2pTarget(String targetClientId) throws TargetClientException {
+        messageApi.addP2pTarget(targetClientId);
     }
     public void onAddP2pTarget(Consumer<String> callback) {
-        p2pMultiMessageApi.onAddP2pTarget(callback);
+        messageApi.onAddP2pTarget(callback);
     }
-    public P2pMultiMessage from(String targetClientId) {
-        return p2pMultiMessageApi.from(targetClientId);
+    public Message from(String targetClientId) {
+        return messageApi.from(targetClientId);
     }
-    public void emitTo(String targetClientId, String event) {
-        p2pMultiMessageApi.emitTo(targetClientId, event, (Object) null);
+    public void emitTo(String targetClientId, String event, Object... args) {
+        messageApi.emitTo(targetClientId, event, args);
     }
-    public void emitTo(String targetClientId, String event, Object[] args) {
-        p2pMultiMessageApi.emitTo(targetClientId, event, args);
-    }
+    public String getClientId() { return messageApi.getClientId(); };
+    public void onAny(String event, Emitter.Listener callback) {messageApi.onAny(event, callback);}
+    public void onceAny(String event, Emitter.Listener callback) {messageApi.onceAny(event, callback);}
+    public void offAny(String event, Emitter.Listener callback) {messageApi.offAny(event, callback);}
+    public void offAny(String event) {messageApi.offAny(event, null);}
 
     // P2pMultiStreamAPI
-    public io.gigasource.p2p_client.api.many_to_many_connection.Duplex addP2pStream(String targetClientId) {
-        return p2pMultiStreamApi.addP2pStream(targetClientId);
+    public Duplex addP2pStream(String targetClientId) throws P2pStreamException {
+        return streamApi.addP2pStream(targetClientId);
     }
-    public void onAddP2pStream(Consumer<io.gigasource.p2p_client.api.many_to_many_connection.Duplex> callback) {
-        p2pMultiStreamApi.onAddP2pStream(callback);
+    public void onAddP2pStream(Consumer<Duplex> callback) {
+        streamApi.onAddP2pStream(callback);
     }
     public void offAddP2pStream() {
-        p2pMultiStreamApi.offAddP2pStream();
+        streamApi.offAddP2pStream();
     }
 }
