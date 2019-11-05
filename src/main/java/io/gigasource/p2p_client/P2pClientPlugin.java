@@ -1,6 +1,7 @@
 package io.gigasource.p2p_client;
 
 import io.gigasource.p2p_client.api.Core;
+import io.gigasource.p2p_client.api.Service;
 import io.gigasource.p2p_client.api.object.stream.Duplex;
 import io.gigasource.p2p_client.api.Message;
 import io.gigasource.p2p_client.api.Stream;
@@ -17,12 +18,15 @@ public class P2pClientPlugin extends Socket {
     private Core coreApi;
     private Message messageApi;
     private Stream streamApi;
+    private Service serviceApi;
 
     private P2pClientPlugin(Manager io, String nsp, Manager.Options opts, String clientId) {
         super(io, nsp, opts);
 
+        coreApi = new Core(this);
         messageApi = new Message(this, clientId);
         streamApi = new Stream(this, messageApi);
+        serviceApi = new Service(this, messageApi);
     }
 
     public static P2pClientPlugin createInstance(Socket socket, String clientId) {
@@ -70,7 +74,7 @@ public class P2pClientPlugin extends Socket {
     public void offAny(String event, Emitter.Listener callback) {messageApi.offAny(event, callback);}
     public void offAny(String event) {messageApi.offAny(event, null);}
 
-    // P2pMultiStreamAPI
+    // Stream API
     public Duplex addP2pStream(String targetClientId) throws P2pStreamException {
         return streamApi.addP2pStream(targetClientId);
     }
@@ -79,5 +83,19 @@ public class P2pClientPlugin extends Socket {
     }
     public void offAddP2pStream() {
         streamApi.offAddP2pStream();
+    }
+
+    // Service API
+    public void emitService(String serviceName, String api, Object... args) {
+        serviceApi.emitService(serviceName, api, args);
+    }
+    public void onService(String serviceName, String api, Emitter.Listener callback) {
+        serviceApi.onService(serviceName, api, callback);
+    }
+    public void subscribeService(String service, String topicName, Emitter.Listener callback) {
+        serviceApi.subscribeService(service, topicName, callback);
+    }
+    public void unsubscribeTopic(String service, String topicName) {
+        serviceApi.unsubscribeTopic(service, topicName);
     }
 }

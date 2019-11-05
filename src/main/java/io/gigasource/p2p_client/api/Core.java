@@ -1,7 +1,6 @@
 package io.gigasource.p2p_client.api;
 
 import io.gigasource.p2p_client.constants.SocketEvent;
-import io.socket.client.Ack;
 import io.socket.client.Socket;
 
 public class Core {

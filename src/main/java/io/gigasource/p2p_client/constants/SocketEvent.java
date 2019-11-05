@@ -12,7 +12,6 @@ public class SocketEvent {
     public static final String SERVER_ERROR = "SERVER_ERROR";
 
     // Stream API events
-    public static final String P2P_REGISTER_STREAM = "P2P_REGISTER_STREAM";
     public static final String P2P_EMIT_STREAM = "P2P_EMIT_STREAM";
     public static final String STREAM_IDENTIFIER_PREFIX = "-from-stream-";
     public static final String PEER_STREAM_DESTROYED = "PEER_STREAM_DESTROYED";
