@@ -19,7 +19,7 @@ public class Duplex {
     private Message messageApi;
     private List<OutputStream> outputStreams;
     private InputStream inputStream;
-    private int emitChunkSize = 1024;
+    private int emitChunkSize = 1024 * 16;
     private Thread inputScanThread;
     private final Object inputReadThreadLock = new Object();
     private boolean destroyed;

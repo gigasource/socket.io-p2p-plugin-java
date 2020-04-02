@@ -15,7 +15,7 @@ dependencies {
     testImplementation('org.junit.jupiter:junit-jupiter:5.5.2')
     testImplementation("org.mockito:mockito-core:2.+");
     implementation 'io.socket:socket.io-client:1.0.0'
-    implementation 'org.apache.commons:commons-lang:3:3.9'
+    implementation 'org.apache.commons:commons-lang3:3.9'
     implementation 'net.sourceforge.streamsupport:android-retrostreams:1.7.1'
     implementation 'net.sourceforge.streamsupport:android-retrofuture:1.7.1'
     testImplementation 'org.awaitility:awaitility:4.0.1'
