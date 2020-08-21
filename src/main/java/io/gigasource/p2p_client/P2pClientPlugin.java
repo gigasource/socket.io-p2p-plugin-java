@@ -180,6 +180,22 @@ public class P2pClientPlugin extends Socket {
         }
     }
 
+    public boolean isClientConnected(String clientId) {
+        CompletableFuture<Boolean> req = new CompletableFuture<>();
+
+        emit(SocketEvent.GET_CLIENT_CONNECTED_STATUS, new Object[] { clientId }, args -> {
+            boolean connected = (boolean) args[0];
+            req.complete(connected);
+        });
+
+        try {
+            return req.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public String getTargetClientId() {
         return targetClientId;
     }

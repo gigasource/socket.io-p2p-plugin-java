@@ -10,4 +10,5 @@ public class SocketEvent {
     public static final String LIST_CLIENTS = "LIST_CLIENTS";
     public static final String P2P_UNREGISTER = "P2P_UNREGISTER";
     public static final String SERVER_ERROR = "SERVER_ERROR";
+    public static final String GET_CLIENT_CONNECTED_STATUS = "GET_CLIENT_CONNECTED_STATUS";
 }
